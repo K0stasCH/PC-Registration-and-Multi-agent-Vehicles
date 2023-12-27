@@ -8,11 +8,14 @@ import matplotlib.pyplot as plt
 from pyquaternion import Quaternion
 import mmseg
 from mmseg.apis import inference_model, init_model, show_result_pyplot
-from Scene.Scnene import Scene
+from Scene.Scene import Scene
+from Vehicle.utils import mask2image
+from PIL import Image
+from typing import List
 # import mmcv
 
 class Vehicle:
-    def __init__(self, dataset:V2XSimDataset, vehicle_id:int):
+    def __init__(self, dataset:V2XSimDataset, vehicle_id:int, scene_id:int=0):
         self.dataSet = dataset
         self.vehicle_id = vehicle_id
 
@@ -79,9 +82,6 @@ class Vehicle:
                 return data[item]
         elif fileforamt == 'pcd':
             pc = LidarPointCloud.from_file(filePath)
-            #points = np.transpose(pcd.points)
-            # points = pcd.points[:3,:]
-            # intensity = pcd.points[3,:]
             os.chdir(previous_directory)
             return pc   
         
@@ -90,6 +90,7 @@ class Vehicle:
             img = self.readData(t)
             cv2.imshow("image", img)
             cv2.waitKey(delay)
+        cv2.destroyAllWindows()
         return
 
     def _showVideo_Seg(self, ch:str, delay:int):
@@ -98,6 +99,7 @@ class Vehicle:
             segIMG_scaled = np.interp(segIMG, (0, 31), (0, 255)).astype(np.uint8)
             cv2.imshow('image', segIMG_scaled)
             cv2.waitKey(delay)
+        cv2.destroyAllWindows()
         return
     
     def _showVideo_Lidar2D(self, delay:int, axes_limit:float = 40, segModel=None):
@@ -111,7 +113,7 @@ class Vehicle:
                 dists = np.sqrt(np.sum(points[:2, :] ** 2, axis=0))
                 colors = np.minimum(1, dists / axes_limit / np.sqrt(2))
             else:
-                points = self.segmentPoints(model=segModel,timeStamp=indx)
+                points, _ = self.segmentPoints(model=segModel,timeStamp=indx)
                 colors = points[3,:]
 
             scatter = ax.scatter(points[0, :], points[1, :], c=colors, s=3.0)
@@ -165,6 +167,7 @@ class Vehicle:
         
         # points = view_points(pc.points[:3, :], np.array(self.calibParam[camChannel]['camera_intrinsic']), normalize=True)
         visible_pointsUV, indices = self._filter_visible_points(camChannel, points, depthsAll)
+        
         # scatter = plt.scatter(visible_pointsUV[0, :], visible_pointsUV[1, :],c=depthsAll[indices], s=3.0)
         # plt.show()
         return visible_pointsUV, depthsAll, indices
@@ -175,10 +178,10 @@ class Vehicle:
 
         mask = np.ones(points.shape[1], dtype=bool)
         mask = np.logical_and(mask, depths > 0.1)
-        mask = np.logical_and(mask, points[0, :] >= 0)
-        mask = np.logical_and(mask, points[0, :] <= image_width - 1)
-        mask = np.logical_and(mask, points[1, :] >= 0)
-        mask = np.logical_and(mask, points[1, :] <= image_hight - 1)
+        mask = np.logical_and(mask, points[0, :] > 1)
+        mask = np.logical_and(mask, points[0, :] < image_width - 1)
+        mask = np.logical_and(mask, points[1, :] > 1)
+        mask = np.logical_and(mask, points[1, :] < image_hight - 1)
         #points = points[:, mask]
 
         visible_lidar_points = points[:, mask]
@@ -217,7 +220,8 @@ class Vehicle:
         lidarToken = self.tokensLidar_Stream[timeStamp]
         pc = self.readData(lidarToken).points[:3,:]
 
-        allPoints = np.array([]).reshape(5, 0) #xyz, label, index
+        allPoints = np.array([]).reshape(5, 0) #xyz, label, index (for all channels)
+        masks = []
 
         for ch in self.channelsCamera:
             imgToken = self.tokensCamera_Stream[ch][timeStamp]
@@ -229,15 +233,15 @@ class Vehicle:
             points3D = pc[:,indices]
 
             mask = self._segmentImage(model, img)
+            masks.append(mask)
             labels = mask[pointsUV[1,:], pointsUV[0,:]]
 
             tempPoints = np.vstack((points3D, labels, indices))
             allPoints = np.hstack((allPoints, tempPoints))
             
-        return allPoints
+        return allPoints, masks
     
-    #TODO implement given maskes
-    def showSegImages(self, model, timeStamp:int, maskes=None):
+    def showSegImages(self, model, timeStamp:int, opacity:float=0.7, masks=None):
         """
         show all 6 images with segmetation maskes at once
         """
@@ -245,12 +249,16 @@ class Vehicle:
         cols = 3
         fig, axs = plt.subplots(rows, cols, figsize=(15, 6))
 
-        for ch, _ax in zip(self.channelsCamera, axs.flatten()):
+        for i, (ch, _ax) in enumerate(zip(self.channelsCamera, axs.flatten())):
             imgToken = self.tokensCamera_Stream[ch][timeStamp]
             img = self.readData(imgToken)
-            if maskes==None:
+            if masks==None:
                 result = inference_model(model, img)
-                segIMG = show_result_pyplot(model, img, result, show=False, withLabels=False, opacity=0.7)
+                segIMG = show_result_pyplot(model, img, result, show=False, withLabels=False, opacity=opacity)
+            else:
+                maskIMG = mask2image(masks[i].astype(int), model.dataset_meta['palette']).convert('RGB')
+                img = Image.fromarray(img[:,:,::-1])
+                segIMG = Image.blend(img, maskIMG, opacity)
             _ax.imshow(segIMG)
             _ax.title.set_text(f'{ch}_id_{self.vehicle_id}')
             _ax.axis('off') 
@@ -260,20 +268,33 @@ class Vehicle:
         return
     
     def generateScene(self, seg_Model, timeStamp:int):
-        DEBUG_BOOL = False
-
-        if  not DEBUG_BOOL:
-            labeledPoints = self.segmentPoints(seg_Model, timeStamp) #xyz, label, index in initial PC
-        else:
-            labeledPoints = np.load('points.npy')
+        labeledPoints, masks = self.segmentPoints(seg_Model, timeStamp) #xyz, label, index in initial PC
 
         palette = seg_Model.dataset_meta['palette']
         classes = seg_Model.dataset_meta['classes']
         egoScene = Scene(labeledPoints[:3,:], labeledPoints[3,:], palette, classes)
 
-        # np.save('points.npy', labeledPoints)
-        # numPOints = 1000
-        # pc = np.random.uniform(-40, 40, size=(3, numPOints))
-        # labels = np.random.randint(0, 18, size=(1, numPOints))
-        # egoScene = Scene(pc, labels, palette, classes)
-        return egoScene
+        return egoScene, masks
+
+    def plotTrajectory(self, othervehicles:List['Vehicle']=None):
+        """
+        plot the ground truth trajectories of the self vehicle and the other vehicles in the same plot
+        """
+        vehicles = [self]
+        if othervehicles is not None:
+            if not all(isinstance(v, Vehicle) for v in othervehicles):
+                raise TypeError("All elements in othervehicles must be instances of the Vehicle class.")
+            vehicles.extend(othervehicles)
+
+        for v in vehicles:
+            trajectory = np.asarray(v.egoTranslation_Stream)
+            transparency = np.linspace(0, 1, num=len(trajectory))
+            plt.scatter(trajectory[:, 0], trajectory[:, 1], marker='o', 
+                            linestyle='-', label=f'Vehicle {v.vehicle_id}', alpha=transparency)
+
+        leg = plt.legend()
+        for lh in leg.legendHandles: 
+            lh.set_alpha(1)
+
+        plt.show()
+        return

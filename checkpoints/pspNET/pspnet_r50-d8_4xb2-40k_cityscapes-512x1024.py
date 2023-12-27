@@ -57,7 +57,7 @@ model = dict(
         loss_decode=dict(
             loss_weight=0.4, type='CrossEntropyLoss', use_sigmoid=False),
         norm_cfg=dict(requires_grad=True, type='BN'),
-        num_classes=12,
+        num_classes=10,
         num_convs=1,
         type='FCNHead'),
     backbone=dict(
@@ -114,7 +114,7 @@ model = dict(
         loss_decode=dict(
             loss_weight=1.0, type='CrossEntropyLoss', use_sigmoid=False),
         norm_cfg=dict(requires_grad=True, type='BN'),
-        num_classes=12,
+        num_classes=10,
         pool_scales=(
             1,
             2,
