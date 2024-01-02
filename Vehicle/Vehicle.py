@@ -1,18 +1,14 @@
 from nuscenes.nuscenes import NuScenes as V2XSimDataset
 from nuscenes.utils.data_classes import LidarPointCloud
-# from nuscenes.utils.geometry_utils import view_points
 import os
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from pyquaternion import Quaternion
-import mmseg
-from mmseg.apis import inference_model, init_model, show_result_pyplot
+from mmseg.apis import inference_model, show_result_pyplot
 from Scene.Scene import Scene
-from Vehicle.utils import mask2image
+from .utils import mask2image
 from PIL import Image
-from typing import List
-# import mmcv
 
 class Vehicle:
     def __init__(self, dataset:V2XSimDataset, vehicle_id:int, scene_id:int=0):
@@ -103,6 +99,9 @@ class Vehicle:
         return
     
     def _showVideo_Lidar2D(self, delay:int, axes_limit:float = 40, segModel=None):
+        '''
+        dont work in ipynb files
+        '''
         _, ax = plt.subplots(1, 1, figsize=(9, 9))
 
         for indx,t in enumerate(self.tokensLidar_Stream):
@@ -263,7 +262,7 @@ class Vehicle:
             _ax.title.set_text(f'{ch}_id_{self.vehicle_id}')
             _ax.axis('off') 
 
-        plt.tight_layout()
+        # plt.tight_layout()
         plt.show()
         return
     
@@ -275,26 +274,3 @@ class Vehicle:
         egoScene = Scene(labeledPoints[:3,:], labeledPoints[3,:], palette, classes)
 
         return egoScene, masks
-
-    def plotTrajectory(self, othervehicles:List['Vehicle']=None):
-        """
-        plot the ground truth trajectories of the self vehicle and the other vehicles in the same plot
-        """
-        vehicles = [self]
-        if othervehicles is not None:
-            if not all(isinstance(v, Vehicle) for v in othervehicles):
-                raise TypeError("All elements in othervehicles must be instances of the Vehicle class.")
-            vehicles.extend(othervehicles)
-
-        for v in vehicles:
-            trajectory = np.asarray(v.egoTranslation_Stream)
-            transparency = np.linspace(0, 1, num=len(trajectory))
-            plt.scatter(trajectory[:, 0], trajectory[:, 1], marker='o', 
-                            linestyle='-', label=f'Vehicle {v.vehicle_id}', alpha=transparency)
-
-        leg = plt.legend()
-        for lh in leg.legendHandles: 
-            lh.set_alpha(1)
-
-        plt.show()
-        return

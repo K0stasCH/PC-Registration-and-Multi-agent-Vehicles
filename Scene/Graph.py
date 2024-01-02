@@ -15,7 +15,8 @@ class Graph():
         self.startIndx = [0] + [*accumulate([node.shape[0] for node in nodes.values()])]
         self.nodes3D = np.empty([0,3])
         for className in nodes.keys():
-            self.nodes3D = np.vstack((self.nodes3D, nodes[className]))
+            if nodes[className].size != 0:
+                self.nodes3D = np.vstack((self.nodes3D, nodes[className]))
              
         self.adjMatrix = self._generateAdjMatrix()
         return
