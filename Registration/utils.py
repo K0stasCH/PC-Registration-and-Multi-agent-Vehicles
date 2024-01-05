@@ -187,10 +187,11 @@ def _matchMatrix_2_indxMatch(matchMatrix:np.array):
 def hardMatch(matchMatrix:np.array):
     return pygm.hungarian(matchMatrix)
 
-def plotMatching(g1:Graph, g2:Graph, matchMatrix:np.array, top_n=None):
+def plotMatching(g1:Graph, g2:Graph, matchMatrix:np.array, top_n=-1):
     """
-    pltAll: False=Render all matches, True=Only the top n 
+    top_n=-1 -> plot all
     """
+    assert top_n >= -1
     fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(6, 3))
 
     g1._createPlot(ax[0])
@@ -213,7 +214,7 @@ def plotMatching(g1:Graph, g2:Graph, matchMatrix:np.array, top_n=None):
         coeff = (conf - minConf)/(maxConf-minConf)
         _color = np.array(green)*(coeff) + np.array(red)*(1-coeff)
 
-        if n > top_n and n!=None:
+        if top_n!=-1 and n>=top_n:
             break
 
         ax[1].annotate('',
