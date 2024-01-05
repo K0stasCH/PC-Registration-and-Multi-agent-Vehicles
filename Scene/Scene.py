@@ -58,8 +58,8 @@ class Scene():
         return pcd
     
     def findcenters(self, 
-                    _min_points, 
-                    _eps,
+                    _min_cluster_size, 
+                    _cluster_selection_epsilon,
                     className:str='vehicle',
                     visualize:bool=True,
                     cropDownLimits:list[float]=[None,None,-1.2]
@@ -74,7 +74,7 @@ class Scene():
         else:
             nodes = np.empty((0, 3))
 
-        hdb = HDBSCAN(min_cluster_size=10, min_samples=None, cluster_selection_epsilon=0.5,
+        hdb = HDBSCAN(min_cluster_size=_min_cluster_size, min_samples=None, cluster_selection_epsilon=_cluster_selection_epsilon,
                       max_cluster_size=None, alpha=1.0, store_centers="centroid").fit(points3d)
         labeledCluster = hdb.labels_
         labeledCluster[hdb.probabilities_<0.95] = -1
@@ -106,16 +106,17 @@ class Scene():
         return nodes
     
     def generateGraph(self,
-                      _min_points:int=17,
-                      _eps:float=0.63,
+                      _min_cluster_size:int=10,
+                      _cluster_selection_epsilon:float=0.5,
                       classNames:[str]=['vehicle'],
                       cropDownLimits:list[float]=[None,None,-1.2]
                       ):
         nodes={}
         for className in classNames:
-            nodes[className] = self.findcenters(className=className, visualize=False,
-                                                 _min_points=_min_points, _eps=_eps,
-                                                 cropDownLimits=cropDownLimits)
+            nodes[className] = self.findcenters(className=className, visualize=False, 
+                                                _min_cluster_size=_min_cluster_size,
+                                                _cluster_selection_epsilon=_cluster_selection_epsilon,                                                 
+                                                cropDownLimits=cropDownLimits)
         return Graph(nodes, self.classes)
 
 

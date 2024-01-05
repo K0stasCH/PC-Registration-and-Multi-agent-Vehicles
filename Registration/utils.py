@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import copy
 import open3d as o3d
 from scipy.spatial.transform import Rotation
+from matplotlib.colors import LinearSegmentedColormap
 
 
 def _RotTransl_2_4x4(rot:np.array, transl:np.array):
@@ -140,7 +141,7 @@ def getTransforamtionMatrix_from_MatchingMatrix(g1:Graph, g2:Graph, matchMatrix:
     return an 4x4 matrix
     """
     assert num_top_matches >= 3
-    matchingIdnx = matchMatrix_2_indxMatch(matchMatrix)
+    matchingIdnx = _matchMatrix_2_indxMatch(matchMatrix)
     matchingIdnx = np.asarray(matchingIdnx, dtype=int)
 
     points_1 = g1.nodes3D[matchingIdnx[:num_top_matches,0],:]
@@ -169,7 +170,7 @@ def matchGraph(g1:Graph, g2:Graph):
 
     return affinityMatrix, softMatch
 
-def matchMatrix_2_indxMatch(matchMatrix:np.array):
+def _matchMatrix_2_indxMatch(matchMatrix:np.array):
     '''
     return an (n,3) array sorted by 'score' from high to low\n
     [nodei_g1, nodej_g2, score]
@@ -186,26 +187,40 @@ def matchMatrix_2_indxMatch(matchMatrix:np.array):
 def hardMatch(matchMatrix:np.array):
     return pygm.hungarian(matchMatrix)
 
-def plotMatching(g1:Graph, g2:Graph, matchMatrix:np.array, num_top_matches:int=3, pltAll:bool=False):
+def plotMatching(g1:Graph, g2:Graph, matchMatrix:np.array, top_n=None):
+    """
+    pltAll: False=Render all matches, True=Only the top n 
+    """
     fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(6, 3))
 
     g1._createPlot(ax[0])
     g2._createPlot(ax[1])
-    matchingIdnx = matchMatrix_2_indxMatch(matchMatrix)
-    for n, (i,j) in enumerate(matchingIdnx[:,:2]):
-        if n<num_top_matches:
-            _color = 'red'
-        else:
-            _color = 'black'
+    matchingIdnx = _matchMatrix_2_indxMatch(matchMatrix)
+    
+    maxConf = matchingIdnx[0,2]
+    minConf = matchingIdnx[-1,2]
 
-        if n>=num_top_matches and pltAll == False:
+    green = (0,1,0)
+    red = (1,0,0)
+    cmap = LinearSegmentedColormap.from_list('custom_cmap', [red, green], N=256)
+    cax = fig.add_axes([0.92, 0.1, 0.02, 0.8])
+    cbar = plt.colorbar(plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=minConf, vmax=maxConf)),
+                    cax=cax, orientation='vertical')
+    cbar.set_label('Confidence')
+    
+
+    for n, (i,j, conf) in enumerate(matchingIdnx[:,:]):
+        coeff = (conf - minConf)/(maxConf-minConf)
+        _color = np.array(green)*(coeff) + np.array(red)*(1-coeff)
+
+        if n > top_n and n!=None:
             break
 
         ax[1].annotate('',
                        xy=(g1.nodes3D[int(i),0], g1.nodes3D[int(i),1]), xycoords=ax[0].transData,
                        xytext=(g2.nodes3D[int(j),0], g2.nodes3D[int(j),1]), textcoords=ax[1].transData,
                        arrowprops=dict(arrowstyle="<->", color=_color))
-
+        
     plt.show()
     
     return
@@ -215,14 +230,15 @@ def transform_Graph(ref:Graph, transformed:Graph, matchMatrix:np.array):
     g = transformed.tranform_Points(T)
     return g
 
-def draw_registration_result(target:Scene, source:Scene, transformation):
+def draw_registration_result(target:Scene, source:Scene, transformation, annotations:bool=True):
     """
     the transformations is applied to source PCD
     """
     source_temp = copy.deepcopy(source)
     target_temp = copy.deepcopy(target)
-    # source_temp.pcd.paint_uniform_color([1, 0.706, 0])
-    # target_temp.pcd.paint_uniform_color([0, 0.651, 0.929])
+    if annotations==False:
+        source_temp.pcd.paint_uniform_color([1, 0.706, 0])
+        target_temp.pcd.paint_uniform_color([0, 0.651, 0.929])
     source_temp.pcd.transform(transformation)
 
     o3d.visualization.draw_geometries([source_temp.pcd, target_temp.pcd])
@@ -261,6 +277,7 @@ def printErrors(gt_TransformationMatrix:np.array, estimated_TransformationMatrix
     t, r = compareTransformation(gt_TransformationMatrix, estimated_TransformationMatrix, angularType)
 
     errorT = np.linalg.norm(t)
+    # r = np.abs(r)
     print(f'Translation Error:{errorT:.2f}\tAxis-X Error:{r[0]:.2f}\tAxis-Y Error:{r[1]:.2f}\tAxis-Z Error:{r[2]:.2f}')
     # print(np.linalg.norm(t))
     return errorT, r[0], r[1], r[2]
