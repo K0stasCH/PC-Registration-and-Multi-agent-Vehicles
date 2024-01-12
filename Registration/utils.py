@@ -149,7 +149,7 @@ def getTransforamtionMatrix_from_MatchingMatrix(g1:Graph, g2:Graph, matchMatrix:
     T = findTransforamtionMatrix(points_2, points_1, True)
     return T
 
-def matchGraph(g1:Graph, g2:Graph):
+def matchGraph(g1:Graph, g2:Graph, _sigma:float=1.0):
     pygm.BACKEND = 'numpy'
 
     n1 = np.array([g1.nodes3D.shape[0]])
@@ -161,7 +161,7 @@ def matchGraph(g1:Graph, g2:Graph):
     node1_feat = g1._generateNodeFeat()
     node2_feat = g2._generateNodeFeat()
 
-    gaussian_aff = functools.partial(pygm.utils.gaussian_aff_fn, sigma=1.0) # set affinity function
+    gaussian_aff = functools.partial(pygm.utils.gaussian_aff_fn, sigma=_sigma) # set affinity function
     affinityMatrix = pygm.utils.build_aff_mat(node1_feat, edge1_feat, conn1, 
                                               node2_feat, edge2_feat, conn2, 
                                               n1, None, n2, None, edge_aff_fn=gaussian_aff)

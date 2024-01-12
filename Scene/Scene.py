@@ -73,6 +73,9 @@ class Scene():
             nodes = np.array([0,0,-0.5]) #initialize nodes with the ego-vehicle
         else:
             nodes = np.empty((0, 3))
+            
+        if points3d.shape[0]<_min_cluster_size:
+            _min_cluster_size=points3d.shape[0]
 
         hdb = HDBSCAN(min_cluster_size=_min_cluster_size, min_samples=None, cluster_selection_epsilon=_cluster_selection_epsilon,
                       max_cluster_size=None, alpha=1.0, store_centers="centroid").fit(points3d)
