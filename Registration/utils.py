@@ -245,11 +245,11 @@ def draw_registration_result(target:Scene, source:Scene, transformation, annotat
     o3d.visualization.draw_geometries([source_temp.pcd, target_temp.pcd])
     return
 
-def performICP(source:Scene, target:Scene, trans_init:np.array, algorithm:str='p2p', threshold:float=0.5, sigma:float=0.1):
-    if algorithm not in ['p2p', 'p2l']:
-        raise Exception("Wrong algorith value. Must be 'p2p' or 'p2l'")
+def performICP(source:Scene, target:Scene, trans_init:np.array, threshold:float=0.5, classes = ['building', 'pole', 'traffic light', 'person']):
+    # if algorithm not in ['p2p', 'p2l']:
+    #     raise Exception("Wrong algorith value. Must be 'p2p' or 'p2l'")
     
-    classes = ['building', 'pole', 'traffic light', 'person', 'vehicle']
+
     source_temp = copy.deepcopy(source)
     target_temp = copy.deepcopy(target)
 
@@ -258,13 +258,13 @@ def performICP(source:Scene, target:Scene, trans_init:np.array, algorithm:str='p
 
     # o3d.visualization.draw_geometries([target_pcd])
 
-    if algorithm == 'p2l':
-        source_pcd.estimate_normals()
-        target_pcd.estimate_normals()
-        loss = o3d.pipelines.registration.TukeyLoss(k=sigma)
-        function = o3d.pipelines.registration.TransformationEstimationPointToPlane(loss)
-    if algorithm == 'p2p':
-        function = o3d.pipelines.registration.TransformationEstimationPointToPoint()
+    # if algorithm == 'p2l':
+    #     source_pcd.estimate_normals()
+    #     target_pcd.estimate_normals()
+    #     loss = o3d.pipelines.registration.TukeyLoss(k=sigma)
+    #     function = o3d.pipelines.registration.TransformationEstimationPointToPlane(loss)
+    # if algorithm == 'p2p':
+    function = o3d.pipelines.registration.TransformationEstimationPointToPoint()
 
     reg = o3d.pipelines.registration.registration_icp(source_pcd, target_pcd,
                                                       threshold, trans_init,
