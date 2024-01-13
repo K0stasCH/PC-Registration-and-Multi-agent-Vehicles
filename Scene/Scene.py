@@ -77,6 +77,10 @@ class Scene():
         if points3d.shape[0]<_min_cluster_size:
             _min_cluster_size=points3d.shape[0]
 
+        if _min_cluster_size < 2:
+            return nodes
+
+
         hdb = HDBSCAN(min_cluster_size=_min_cluster_size, min_samples=None, cluster_selection_epsilon=_cluster_selection_epsilon,
                       max_cluster_size=None, alpha=1.0, store_centers="centroid").fit(points3d)
         labeledCluster = hdb.labels_
@@ -116,10 +120,12 @@ class Scene():
                       ):
         nodes={}
         for className in classNames:
-            nodes[className] = self.findcenters(className=className, visualize=False, 
-                                                _min_cluster_size=_min_cluster_size,
-                                                _cluster_selection_epsilon=_cluster_selection_epsilon,                                                 
-                                                cropDownLimits=cropDownLimits)
+            centers = self.findcenters(className=className, visualize=False, 
+                                       _min_cluster_size=_min_cluster_size,
+                                       _cluster_selection_epsilon=_cluster_selection_epsilon,                                                 
+                                       cropDownLimits=cropDownLimits)
+            # if centers.shape[0]>2:
+            nodes[className] = centers
         return Graph(nodes, self.classes)
 
 
