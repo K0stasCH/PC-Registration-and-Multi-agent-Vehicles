@@ -245,7 +245,8 @@ def draw_registration_result(target:Scene, source:Scene, transformation, annotat
     o3d.visualization.draw_geometries([source_temp.pcd, target_temp.pcd])
     return
 
-def performICP(source:Scene, target:Scene, trans_init:np.array, threshold:float=0.5, classes = ['building', 'pole', 'traffic light', 'person']):
+def performICP(source:Scene, target:Scene, trans_init:np.array, threshold:float=0.5,
+               classes = ['building', 'pole', 'traffic light', 'person', 'vehicle']):
     # if algorithm not in ['p2p', 'p2l']:
     #     raise Exception("Wrong algorith value. Must be 'p2p' or 'p2l'")
     
