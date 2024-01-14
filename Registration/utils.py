@@ -272,13 +272,16 @@ def performICP(source:Scene, target:Scene, trans_init:np.array, threshold:float=
     return reg
 
 def printErrors(gt_TransformationMatrix:np.array, estimated_TransformationMatrix:np.array, angularType:str='radians'):
+    """
+    print the magnitude of the translation error vector and the absolute value of angle errors
+    """
     assert gt_TransformationMatrix.shape == estimated_TransformationMatrix.shape
     assert gt_TransformationMatrix.shape == (4,4)
 
     t, r = compareTransformation(gt_TransformationMatrix, estimated_TransformationMatrix, angularType)
 
     errorT = np.linalg.norm(t)
-    # r = np.abs(r)
+    r = np.abs(r)
     print(f'Translation Error:{errorT:.2f}\tAxis-X Error:{r[0]:.2f}\tAxis-Y Error:{r[1]:.2f}\tAxis-Z Error:{r[2]:.2f}')
     # print(np.linalg.norm(t))
     return errorT, r[0], r[1], r[2]
