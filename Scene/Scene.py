@@ -40,13 +40,13 @@ class Scene():
         idxes =  np.where(self.labels == indx)[0]
         return idxes
     
-    def createPCD(self, labels:list[str], cropDownLimits:list[float]=[None,None,-1.2]):
+    def createPCD(self, cls_labels:list[str], cropDownLimits:list[float]=[None,None,-1.2]):
         '''
         create a new point cloud only with points labeled in list "labels"
         '''
         assert len(cropDownLimits) == 3
         
-        classIndexes = [labels.index(label) for label in labels]
+        classIndexes = [self.classes.index(label) for label in cls_labels]
         pointsIndexes = np.where(np.isin(self.labels, classIndexes))[0]
         points3d = np.array(self.pcd.points)[pointsIndexes,:]
 

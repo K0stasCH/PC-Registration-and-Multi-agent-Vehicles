@@ -93,6 +93,7 @@ def tranformPoints(points3D:np.array, matrix:np.array):
     return pointsTransformed
 
 def findTransforamtionMatrix(a:np.array, b:np.array, size_4x4:bool=True):
+    """Kabsch Algorithm"""
     a = a.T
     b = b.T
     assert a.shape == b.shape
@@ -257,7 +258,10 @@ def performICP(source:Scene, target:Scene, trans_init:np.array, threshold:float=
     source_pcd = source_temp.createPCD(classes, cropDownLimits=[None, None, -1.2])
     target_pcd = target_temp.createPCD(classes, cropDownLimits=[None, None, -1.2])
 
-    # o3d.visualization.draw_geometries([target_pcd])
+    # source_pcd.paint_uniform_color([1, 0.706, 0])
+    # target_pcd.paint_uniform_color([0, 0.651, 0.929])
+    # target_pcd.transform(trans_init)
+    # o3d.visualization.draw_geometries([target_pcd, source_pcd])
 
     # if algorithm == 'p2l':
     #     source_pcd.estimate_normals()
@@ -270,6 +274,11 @@ def performICP(source:Scene, target:Scene, trans_init:np.array, threshold:float=
     reg = o3d.pipelines.registration.registration_icp(source_pcd, target_pcd,
                                                       threshold, trans_init,
                                                       function)
+    # source_pcd.paint_uniform_color([1, 0.706, 0])
+    # target_pcd.paint_uniform_color([0, 0.651, 0.929])
+    # target_pcd.transform(reg.transformation)
+    # o3d.visualization.draw_geometries([target_pcd, source_pcd])
+
     return reg
 
 def printErrors(gt_TransformationMatrix:np.array, estimated_TransformationMatrix:np.array, angularType:str='radians'):
